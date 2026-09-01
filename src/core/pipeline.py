@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 # 假设这些是原有的导入，保持不变
 from src.core.config_manager import ConfigManager
 from src.core.market_review import MarketReviewRunResult
-from src.core.market_strategy import MarketStrategyAnalyzer
+
 from src.core.trading_calendar import TradingCalendar
 from src.llm.llm_client import LLMClient
 from src.notification_sender.sender_factory import NotificationSenderFactory
@@ -23,7 +23,7 @@ class StockAnalysisPipeline:
         self.calendar = TradingCalendar()
         self.llm_client = LLMClient()
         self.review_generator = MarketReviewGenerator(self.llm_client)
-        self.strategy_analyzer = MarketStrategyAnalyzer(self.llm_client)
+        
         self.sender_factory = NotificationSenderFactory()
 
     def _resolve_resume_target_date(self, resume_date_str: Optional[str] = None) -> date:
