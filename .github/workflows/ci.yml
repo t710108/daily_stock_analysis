@@ -35,28 +35,26 @@ jobs:
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
-        # 【关键修复 1】强制清除所有 Python 缓存文件，防止旧缓存导致的 Import Error
-        echo "Cleaning up Python cache..."
-        find . -type d -name "__pycache__" -exec rm -rf {} +
-        find . -type f -name "*.pyc" -delete
+        # 【关键修复】自动进入包含 src 的子目录
+        # GitHub Actions 有时会将代码 checkout 到同名子文件夹中，导致路径嵌套
+        if [ -d "daily_stock_analysis" ] && [ -d "daily_stock_analysis/src" ]; then
+          echo "Entering project subdirectory..."
+          cd daily_stock_analysis
+        fi
+
+        # 【关键修复】将当前目录（包含 src 的目录）加入 PYTHONPATH
+        export PYTHONPATH=$(pwd):$PYTHONPATH
         
-        # 【关键修复 2】将当前工作目录加入 PYTHONPATH
-        # 这样 Python 就能正确找到 src.core.pipeline 等模块
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        
-        echo "Running tests for Shard ${{ matrix.shard }}/3..."
-        # 使用 pytest-split 进行分片测试
-        # --splits 3: 总共分成 3 份
-        # --group ${{ matrix.shard }}: 当前运行第几份
-        pytest \
+        echo "Current Directory: $(pwd)"
+        echo "PYTHONPATH: $PYTHONPATH"
+        ls -l  # 打印目录结构以便调试
+
+        # 【关键修复】清除所有缓存，防止旧的 .pyc 文件干扰
+        find . -type d -name "__pycache__" -exec rm -rf {} + || true
+
+        # 运行测试分片
+        pytest tests/ \
           --splits 3 \
           --group ${{ matrix.shard }} \
           -v \
-          --tb=short \
-          tests/
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: false
+          --tb=short
