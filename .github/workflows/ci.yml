@@ -123,19 +123,19 @@ jobs:
         if: matrix.shard == 1
         run: ./scripts/ci_gate.sh deterministic
       - name: ✅ Offline test suite shard ${{ matrix.shard }}/3
-3       env:
-4         PYTEST_SPLITS: '3'
-5         PYTEST_GROUP: ${{ matrix.shard }}
-6         PYTEST_FIRST_SHARD_OVERHEAD: '20'
-7       run: |
-8         pytest tests/ \
-9            --ignore=tests/test_pipeline_daily_market_context.py \
-10           --ignore=tests/test_pipeline_fetch_error.py \
-11           --ignore=tests/test_pipeline_market_phase_context.py \
-12           --ignore=tests/test_pipeline_related_boards.py \
-13           --ignore=tests/test_pipeline_single_stock_notify.py \
-14           --ignore=tests/test_realtime_quote_fallback_logging.py \
-15           --ignore=tests/test_skill_opinion_samples.py
+        env:
+          PYTEST_SPLITS: '3'
+          PYTEST_GROUP: ${{ matrix.shard }}
+          PYTEST_FIRST_SHARD_OVERHEAD: '20'
+        run: |
+          pytest tests/ \
+             --ignore=tests/test_pipeline_daily_market_context.py \
+             --ignore=tests/test_pipeline_fetch_error.py \
+             --ignore=tests/test_pipeline_market_phase_context.py \
+             --ignore=tests/test_pipeline_related_boards.py \
+             --ignore=tests/test_pipeline_single_stock_notify.py \
+             --ignore=tests/test_realtime_quote_fallback_logging.py \
+             --ignore=tests/test_skill_opinion_samples.py
   backend-gate:
     name: backend-gate
     runs-on: ubuntu-latest
