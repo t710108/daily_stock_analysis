@@ -35,22 +35,28 @@ jobs:
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
-        # 【关键修复】强制清除所有 Python 缓存文件，防止 Import Error
-        echo "Cleaning up __pycache__..."
+        # 【关键修复 1】强制清除所有 Python 缓存文件，防止旧缓存导致的 Import Error
+        echo "Cleaning up Python cache..."
         find . -type d -name "__pycache__" -exec rm -rf {} +
         find . -type f -name "*.pyc" -delete
         
-        echo "Running tests for shard ${{ matrix.shard }}..."
-        pytest tests/ \
+        # 【关键修复 2】将当前工作目录加入 PYTHONPATH
+        # 这样 Python 就能正确找到 src.core.pipeline 等模块
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        
+        echo "Running tests for Shard ${{ matrix.shard }}/3..."
+        # 使用 pytest-split 进行分片测试
+        # --splits 3: 总共分成 3 份
+        # --group ${{ matrix.shard }}: 当前运行第几份
+        pytest \
           --splits 3 \
           --group ${{ matrix.shard }} \
-          --cov=src \
-          --cov-report=xml \
-          -v
+          -v \
+          --tb=short \
+          tests/
 
     - name: Upload coverage to Codecov
-      if: matrix.shard == 1  # 只在第一个分片上传覆盖率，避免冲突
       uses: codecov/codecov-action@v3
       with:
-        file: ./coverage.xml
+        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
