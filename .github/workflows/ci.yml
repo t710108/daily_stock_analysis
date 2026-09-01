@@ -25,39 +25,58 @@ jobs:
       with:
         python-version: '3.10'
 
+    # 【关键修复步骤】自动检测并进入包含 src 的子目录
+    # 解决 GitHub Actions checkout 后多套一层文件夹的问题
+    - name: Navigate to Project Root
+      run: |
+        echo "当前目录内容:"
+        ls -la
+        if [ -d "daily_stock_analysis" ] && [ -d "daily_stock_analysis/src" ]; then
+          echo "检测到子目录，正在进入 daily_stock_analysis..."
+          cd daily_stock_analysis
+          echo "现在位于: $(pwd)"
+        else
+          echo "当前目录即为根目录，无需切换。"
+        fi
+        # 将正确的路径写入环境变量，供后续步骤使用
+        echo "PROJECT_ROOT=$(pwd)" >> $GITHUB_ENV
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        
-        # 【关键修复】自动检测并进入包含 src 的子目录
-        # 如果存在 daily_stock_analysis 子文件夹，就进去；否则留在当前目录
-        if [ -d "daily_stock_analysis" ]; then
-          cd daily_stock_analysis
+        # 确保在正确目录下安装依赖（如果 requirements.txt 在子目录里）
+        if [ -f "$PROJECT_ROOT/requirements.txt" ]; then
+          pip install -r $PROJECT_ROOT/requirements.txt
         fi
-        
-        # 安装项目依赖
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        # 显式安装测试所需插件
         pip install pytest pytest-split pytest-cov
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
-        # 【关键修复】再次确保我们在正确的目录下运行测试
-        if [ -d "daily_stock_analysis" ]; then
-          cd daily_stock_analysis
-        fi
+        # 【关键修复】在正确的项目根目录下运行测试
+        cd $PROJECT_ROOT
 
-        # 【关键修复】将当前目录（即包含 src 的目录）加入 PYTHONPATH
+        echo "=== 开始运行测试 (Shard ${{ matrix.shard }}/3) ==="
+        echo "当前工作目录: $(pwd)"
+        ls -la  # 再次确认 src 和 tests 都在当前目录下
+
+        # 清除缓存防止干扰
+        find . -type d -name "__pycache__" -exec rm -rf {} + || true
+
+        # 设置 PYTHONPATH 为当前目录 (即包含 src 的目录)
         export PYTHONPATH=$(pwd):$PYTHONPATH
-        
-        # 打印当前路径和文件结构，方便调试（如果还报错，看这里的输出）
-        echo "Current Directory: $(pwd)"
-        ls -l
-        
-        # 运行测试
-        pytest tests/ \
+
+        # 运行 pytest
+        python -m pytest tests/ \
           --splits 3 \
           --group ${{ matrix.shard }} \
           -v \
+          --tb=short \
           --cov=src \
-          --cov-report=xml
+          --cov-report=xml:coverage.xml
+
+    - name: Upload Coverage Report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report-shard-${{ matrix.shard }}
+        path: coverage.xml
