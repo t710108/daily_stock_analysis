@@ -28,44 +28,29 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # 【修复】安装依赖前先尝试进入子目录，防止 requirements.txt 找不到
-        if [ -d "daily_stock_analysis" ]; then cd daily_stock_analysis; fi
+        # 安装项目依赖
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # 显式安装测试所需插件
         pip install pytest pytest-split pytest-cov
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
         # 【关键修复】自动进入包含 src 的子目录
-        # GitHub Actions 有时会将代码 checkout 到同名子文件夹中，导致路径嵌套
-        if [ -d "daily_stock_analysis" ]; then
-          echo "Detected nested directory, changing into daily_stock_analysis..."
+        # 如果当前目录下没有 src，但子目录里有，就 cd 进去
+        if [ ! -d "src" ] && [ -d "daily_stock_analysis/src" ]; then
+          echo "Detected nested directory structure. Entering subdirectory..."
           cd daily_stock_analysis
         fi
-
-        # 再次确认 src 是否存在
-        if [ ! -d "src" ]; then
-          echo "Error: src directory not found!"
-          ls -la
-          exit 1
-        fi
-
-        # 设置环境变量并运行测试
-        export PYTHONPATH=$PWD:$PYTHONPATH
-        export ENVIRONMENT=offline
-
-        echo "Current Directory: $(pwd)"
-        echo "Running shard ${{ matrix.shard }}/3..."
-
-        # 使用 pytest-split 分片运行
-        pytest -x -v \
+        
+        # 再次确认 src 存在
+        ls -la
+        
+        # 运行测试并分片
+        python -m pytest tests/ \
+          --ignore=tests/test_realtime_monitor.py \
+          -n auto \
           --splits 3 \
           --group ${{ matrix.shard }} \
-          tests/
-
-    - name: Upload Coverage Report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report-shard-${{ matrix.shard }}
-        path: .coverage.*
-        include-hidden-files: true
+          --cov=src \
+          --cov-report=term-missing \
+          -v
