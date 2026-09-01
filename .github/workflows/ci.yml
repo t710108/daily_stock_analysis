@@ -30,24 +30,27 @@ jobs:
         python -m pip install --upgrade pip
         # 安装项目依赖
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        # 【关键修复】显式安装 pytest 和 pytest-split 插件
+        # 显式安装测试所需插件
         pip install pytest pytest-split pytest-cov
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
-        # 使用 pytest-split 进行分片测试
-        # --splits 3: 总共分为3组
-        # --group ${{ matrix.shard }}: 当前运行第几组
+        # 【关键修复】强制清除所有 Python 缓存文件，防止 Import Error
+        echo "Cleaning up __pycache__..."
+        find . -type d -name "__pycache__" -exec rm -rf {} +
+        find . -type f -name "*.pyc" -delete
+        
+        echo "Running tests for shard ${{ matrix.shard }}..."
         pytest tests/ \
           --splits 3 \
           --group ${{ matrix.shard }} \
-          --cov=. \
-          --cov-report=xml
+          --cov=src \
+          --cov-report=xml \
+          -v
 
     - name: Upload coverage to Codecov
+      if: matrix.shard == 1  # 只在第一个分片上传覆盖率，避免冲突
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
         fail_ci_if_error: false
