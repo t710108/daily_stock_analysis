@@ -28,29 +28,30 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # 安装项目依赖
+        # 1. 安装项目基础依赖
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        # 显式安装测试所需插件
-        pip install pytest pytest-split pytest-cov
+        
+        # 2. 【关键修复】显式安装并行测试插件 xdist 和分片插件 split
+        pip install pytest pytest-xdist pytest-split pytest-cov
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
         # 【关键修复】自动进入包含 src 的子目录
-        # 如果当前目录下没有 src，但子目录里有，就 cd 进去
-        if [ ! -d "src" ] && [ -d "daily_stock_analysis/src" ]; then
-          echo "Detected nested directory structure. Entering subdirectory..."
+        # GitHub Actions 经常把代码检出到 /home/runner/work/repo_name/repo_name/
+        if [ -d "daily_stock_analysis" ]; then
           cd daily_stock_analysis
+          echo "Entered subdirectory: $(pwd)"
         fi
+
+        # 确认当前目录结构（调试用）
+        ls -l
         
-        # 再次确认 src 存在
-        ls -la
-        
-        # 运行测试并分片
+        # 运行测试
+        # -n auto: 启用多进程 (需要 pytest-xdist)
+        # --splits 3 --group ${{ matrix.shard }}: 将测试分为3组并行运行 (需要 pytest-split)
         python -m pytest tests/ \
-          --ignore=tests/test_realtime_monitor.py \
           -n auto \
           --splits 3 \
           --group ${{ matrix.shard }} \
-          --cov=src \
-          --cov-report=term-missing \
-          -v
+          -v \
+          --tb=short
