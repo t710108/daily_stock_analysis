@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 # 假设这些是原有的导入，保持不变
 from src.core.config_manager import ConfigManager
-from src.core.market_review import MarketReviewGenerator
+from src.core.market_review import MarketReviewRunResult
 from src.core.market_strategy import MarketStrategyAnalyzer
 from src.core.trading_calendar import TradingCalendar
 from src.llm.llm_client import LLMClient
