@@ -644,8 +644,81 @@ def compute_effective_region(
 
     # multi-region subset: keep only markets open today, in canonical order
     open_selected = [m for m in markets if m in requested and m in open_markets]
+    
     if not open_selected:
         return ""
     if len(open_selected) == 1:
         return open_selected[0]
     return ",".join(open_selected)
+    # ... (你现有的代码，直到第 37 行 logger.warning 结束) ...
+
+# ==========================================
+# 在文件末尾添加这个类定义
+# ==========================================
+
+class TradingCalendar:
+    """
+    交易日历封装类。
+    用于判断特定日期是否为交易日，以及获取市场开闭市时间。
+    """
+
+    def __init__(self, market: str = "XSHG"):
+        """
+        初始化交易日历。
+        :param market: 市场代码，默认为 'XSHG' (上海证券交易所)。
+                       其他常见: 'XSHE' (深交所), 'XHKG' (港交所)。
+        """
+        self.market = market
+        self._calendar = None
+        
+        # 只有在库可用时才尝试初始化底层日历
+        if _XCALS_AVAILABLE:
+            try:
+                # 尝试获取对应的日历对象
+                self._calendar = xcalss.get_calendar(market)
+                logger.info(f"Trading calendar loaded for {market}.")
+            except Exception as e:
+                logger.error(f"Failed to load calendar for {market}: {e}")
+        else:
+            logger.warning("exchange_calendars not found. Trading checks will be disabled.")
+
+    def is_trading_day(self, dt: date) -> bool:
+        """
+        判断给定日期是否为交易日。
+        如果库不可用，默认返回 True (Fail-open 策略)。
+        """
+        if not _XCALS_AVAILABLE or self._calendar is None:
+            return True  # 库挂了就不拦着，默认放行
+            
+        try:
+            # 将 date 转换为 pandas Timestamp 进行检查
+            session_label = pd.Timestamp(dt)
+            # 检查该日期是否在会话列表中
+            return session_label in self._calendar.sessions
+        except Exception as e:
+            logger.error(f"Error checking trading day for {dt}: {e}")
+            return True # 出错时也默认放行
+
+    def get_session_open(self, dt: date) -> Optional[datetime]:
+        """获取当天的开市时间"""
+        if not _XCALS_AVAILABLE or self._calendar is None:
+            return None
+        try:
+            session_label = pd.Timestamp(dt)
+            if session_label in self._calendar.sessions:
+                return self._calendar.session_open(session_label).to_pydatetime()
+        except Exception:
+            pass
+        return None
+
+    def get_session_close(self, dt: date) -> Optional[datetime]:
+        """获取当天的闭市时间"""
+        if not _XCALS_AVAILABLE or self._calendar is None:
+            return None
+        try:
+            session_label = pd.Timestamp(dt)
+            if session_label in self._calendar.sessions:
+                return self._calendar.session_close(session_label).to_pydatetime()
+        except Exception:
+            pass
+        return None
