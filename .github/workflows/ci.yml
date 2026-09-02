@@ -1,74 +1,85 @@
-name: CI
+name: Daily Stock Analysis CI
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  schedule:
-    - cron: '0 9 * * *'  # 每天 UTC 09:00 (北京时间 17:00) 运行
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
+    # 保持你原有的分片策略，并行运行测试
     strategy:
       matrix:
         shard: [1, 2, 3]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-            # 👇👇👇 新增步骤开始 👇👇👇
+      # ---------------------------------------------------------
+      # 👇 新增步骤：在 Checkout 之前/之后立即检查文件
+      # 注意：这里使用 actions/checkout@v3 确保代码已拉取
+      # ---------------------------------------------------------
+      
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Verify macOS Signature Audit Script
         run: |
-          # 定义脚本可能的路径
-          SCRIPT_PATH="scripts/macos-signature-audit.sh"
+          echo "🔍 Checking for scripts/macos-signature-audit.sh..."
           
-          # 检查根目录是否存在
-          if [ ! -f "$SCRIPT_PATH" ]; then
-            echo "Error: Script not found at root level: $SCRIPT_PATH"
+          # 检查文件是否存在
+          if [ ! -f "scripts/macos-signature-audit.sh" ]; then
+            echo "::error::❌ Critical Error: scripts/macos-signature-audit.sh is missing!"
+            echo "Please ensure the script exists in the repository."
             exit 1
           fi
           
-          echo "Success: Found $SCRIPT_PATH"
+          echo "✅ Script found successfully."
+          # 可选：检查是否有执行权限
+          if [ ! -x "scripts/macos-signature-audit.sh" ]; then
+             echo "⚠️ Warning: Script is not executable. Attempting to fix..."
+             chmod +x scripts/macos-signature-audit.sh
+          fi
+
+      # ---------------------------------------------------------
+      # 原有环境设置步骤
+      # ---------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # 1. 安装项目基础依赖
+          pip install -r requirements.txt 
           
-          # 尝试运行一下（可选，确保它是可执行的）
-          chmod +x "$SCRIPT_PATH"
-      # 👆👆👆 新增步骤结束 👆👆👆
+          # 2. 【关键修复】显式安装并行测试插件 xdist 和分片插件 split
+          pip install pytest pytest-xdist pytest-split pytest-cov
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      # ---------------------------------------------------------
+      # 原有测试运行步骤（包含进入子目录的逻辑）
+      # ---------------------------------------------------------
+      - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
+        run: |
+          # 【关键修复】自动进入包含 src 的子目录
+          # GitHub Actions 经常把代码检出到 /home/runner/work/repo_name/repo_name/
+          if [ -d "daily_stock_analysis" ]; then
+            cd daily_stock_analysis
+            echo "Entered subdirectory: $(pwd)"
+          fi
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        # 1. 安装项目基础依赖
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        
-        # 2. 【关键修复】显式安装并行测试插件 xdist 和分片插件 split
-        pip install pytest pytest-xdist pytest-split pytest-cov
-
-    - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
-      run: |
-        # 【关键修复】自动进入包含 src 的子目录
-        # GitHub Actions 经常把代码检出到 /home/runner/work/repo_name/repo_name/
-        if [ -d "daily_stock_analysis" ]; then
-          cd daily_stock_analysis
-          echo "Entered subdirectory: $(pwd)"
-        fi
-
-        # 确认当前目录结构（调试用）
-        ls -l
-        
-        # 运行测试
-        # -n auto: 启用多进程 (需要 pytest-xdist)
-        # --splits 3 --group ${{ matrix.shard }}: 将测试分为3组并行运行 (需要 pytest-split)
-        python -m pytest tests/ \
-          -n auto \
-          --splits 3 \
-          --group ${{ matrix.shard }} \
-          -v \
-          --tb=short
+          # 确认当前目录结构（调试用）
+          ls -l
+          
+          # 运行测试
+          # -n auto: 启用多进程 (需要 pytest-xdist)
+          # --splits 3 --group ${{ matrix.shard }}: 将测试分为3组并行运行 (需要 pytest-split)
+          python -m pytest tests/ \
+            -n auto \
+            --splits 3 \
+            --group ${{ matrix.shard }} \
+            -v \
+            --tb=short
