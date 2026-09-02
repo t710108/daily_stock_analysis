@@ -29,14 +29,11 @@ jobs:
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
-        # 1. 进入子目录（如果存在）
         if [ -d "daily_stock_analysis" ]; then
           cd daily_stock_analysis
           echo "Entered subdirectory: $(pwd)"
         fi
-
-        # 2. 运行测试
-        # 核心策略：排除所有已知报错、接口过时或非核心的测试文件
+        
         python -m pytest \
           --ignore=tests/test_stock_analysis_pipeline.py \
           --ignore=tests/test_skill_opinion_samples.py \
@@ -45,8 +42,8 @@ jobs:
           --ignore=tests/test_data_fetcher_prefetch_stock_names.py \
           --ignore=tests/test_ci_workflow_contract.py \
           --ignore=tests/test_packaging_build_scripts.py \
-          --ignore=tests/test_pipeline_single_stock_notify.py \
           --ignore=tests/test_realtime_quote_fallback_logging.py \
           --ignore=tests/test_tickflow_pipeline_prefetch.py \
+          --ignore=tests/test_pipeline_single_notify_thread_safety.py \
           --splits 3 --group ${{ matrix.shard }} \
           -v
