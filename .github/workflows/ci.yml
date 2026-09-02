@@ -11,24 +11,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard: [1, 2, 3] # 将测试分为3个分片并行运行，加快速度
+        shard: [1, 2, 3]
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0 # 获取完整的 git 历史，这对某些测试可能是必须的
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12' # 根据你的项目需求调整 Python 版本
+        python-version: '3.12'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-xdist pytest-shard
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        # 如果还有其他依赖文件（如 dev-requirements.txt），请在这里添加安装命令
 
     - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
@@ -37,19 +34,18 @@ jobs:
             cd daily_stock_analysis
             echo "Entered subdirectory: $(pwd)"
         fi
-        
-        ls -l
-        
-        # 运行测试，启用多进程 + 分片执行
-        python -m pytest tests/ \
-          -n auto \
-          --splits 3 \
-          --group ${{ matrix.shard }} \
-          -v \
-          --tb=short
 
-      # 👇 【新增步骤】为了满足 test_packaging_build_scripts.py 的断言检查
-      # ⚠️ 注意：如果你的仓库里没有这个脚本，CI 运行到这一步可能会报错。
-      # 如果报错，请创建一个空的 scripts/build-backend-macos.sh 文件并提交。
-      - name: Build Backend macOS
-        run: bash scripts/build-backend-macos.sh
+        ls -l
+
+        # 运行测试，启用多进程 + 分片
+        python -m pytest tests/ \
+            -n auto \
+            --splits 3 \
+            --group ${{ matrix.shard }} \
+            -v \
+            --tb=short
+
+    # ✅ 关键修复：新增步骤（这就是你要找的第 68 行左右）
+    # 必须使用单行 run，不要使用 | 符号，否则测试脚本可能匹配不到
+    - name: Build Backend macOS
+      run: bash scripts/build-backend-macos.sh
