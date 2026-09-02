@@ -19,6 +19,23 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+            # 👇👇👇 新增步骤开始 👇👇👇
+      - name: Verify macOS Signature Audit Script
+        run: |
+          # 定义脚本可能的路径
+          SCRIPT_PATH="scripts/macos-signature-audit.sh"
+          
+          # 检查根目录是否存在
+          if [ ! -f "$SCRIPT_PATH" ]; then
+            echo "Error: Script not found at root level: $SCRIPT_PATH"
+            exit 1
+          fi
+          
+          echo "Success: Found $SCRIPT_PATH"
+          
+          # 尝试运行一下（可选，确保它是可执行的）
+          chmod +x "$SCRIPT_PATH"
+      # 👆👆👆 新增步骤结束 👆👆👆
 
     - name: Set up Python
       uses: actions/setup-python@v4
