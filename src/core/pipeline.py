@@ -1,12 +1,14 @@
 import logging
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-# from src.notification_sender.sender_factory import NotificationSenderFactory  # [已禁用] 找不到文件，暂时注释掉
-from src.config_manager import ConfigManager
-from src.trading_calendar import TradingCalendar
-from src.llm_client import LLMClient
-from src.market_review_generator import MarketReviewGenerator
+# [已禁用] from src.notification_sender.sender_factory import NotificationSenderFactory
+
+# [修正] 根据截图，这些文件位于 src/core/ 目录下，因此路径需要加上 .core
+from src.core.config_manager import ConfigManager
+from src.core.trading_calendar import TradingCalendar
+from src.core.llm_client import LLMClient
+from src.core.market_review_generator import MarketReviewGenerator
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +23,8 @@ class StockAnalysisPipeline:
         self.llm_client = LLMClient()
         self.review_generator = MarketReviewGenerator(self.llm_client)
 
-        # self.sender_factory = NotificationSenderFactory()  # [已禁用] 暂时注释掉初始化
+        # [已禁用] 暂时注释掉通知工厂的初始化，避免报错
+        # self.sender_factory = NotificationSenderFactory()
 
     def _resolve_resume_target_date(self, resume_date_str: Optional[str] = None) -> date:
         """解析复盘目标日期，默认为上一个交易日"""
@@ -29,7 +32,7 @@ class StockAnalysisPipeline:
             try:
                 return datetime.strptime(resume_date_str, "%Y-%m-%d").date()
             except ValueError:
-                logger.warning(f"日期格式错误: {resume_date_str}，将使用默认逻辑")
+                logger.warning(f"日期格式错误：{resume_date_str}，将使用默认逻辑")
 
         today = date.today()
         # 简单回退逻辑，实际项目中应调用 self.calendar.get_previous_trading_day
@@ -40,12 +43,13 @@ class StockAnalysisPipeline:
                 return candidate
             delta += 1
 
-    # ============== 🔥 新增：主力资金与连板梯队数据获取 ==============
+    # ========================== 🔥 新增：主力资金与连板梯队数据获取 ==========================
 
     def _get_smart_money_flow(self) -> Dict[str, Any]:
         """获取板块主力资金流向 (Top 3 流入/流出)"""
         try:
             import akshare as ak
+
             # 获取行业资金流
             df = ak.stock_fund_flow_industry(symbol="行业")
 
@@ -56,13 +60,14 @@ class StockAnalysisPipeline:
             }
             return smart_money
         except Exception as e:
-            logger.warning(f"获取主力资金数据失败: {e}")
+            logger.warning(f"获取主力资金数据失败：{e}")
             return {}
 
-    def _get_limit_up_ladder(self) -> list[Dict[str, Any]]:
-        """获取连板梯队（涨停股分析）"""
+    def _get_limit_up_ladder(self) -> List[Dict[str, Any]]:
+        """获取连板梯队 (涨停股分析)"""
         try:
             import akshare as ak
+
             # 获取涨停板行情
             df = ak.stock_zt_pool_em(date=datetime.now().strftime("%Y%m%d"))
 
@@ -82,10 +87,10 @@ class StockAnalysisPipeline:
                     })
             return ladder_data
         except Exception as e:
-            logger.warning(f"获取连板梯队数据失败: {e}")
+            logger.warning(f"获取连板梯队数据失败：{e}")
             return []
 
-    # ====================================================================
+    # ======================================================================================
 
     async def run(self, resume_date_str: Optional[str] = None) -> bool:
         """执行完整的分析流程"""
@@ -96,7 +101,7 @@ class StockAnalysisPipeline:
             # 1. 获取基础市场数据 (原有逻辑)
             market_data = self.review_generator.fetch_market_data(target_date)
 
-            # 🔥 2. 获取新增的“主力资金”和“连板梯队”数据
+            # 2. 获取新增的"主力资金"和"连板梯队"数据
             smart_money = self._get_smart_money_flow()
             limit_up_ladder = self._get_limit_up_ladder()
 
@@ -117,7 +122,7 @@ class StockAnalysisPipeline:
             # 6. 发送通知
             final_report = f"【{target_date} 市场分析】\n\n{analysis_result}\n\n【策略建议】\n{strategy_advice}"
 
-            # [已禁用] 暂时跳过发送通知，避免报错
+            # [已禁用] 暂时注释掉发送通知的逻辑
             # success = self.sender_factory.send(final_report)
             # if success:
             #     logger.info("✅ 分析流水线执行成功，通知已发送。")
@@ -125,13 +130,10 @@ class StockAnalysisPipeline:
             #     logger.error("❌ 通知发送失败。")
             # return success
 
-            # 临时替代方案：直接打印报告到控制台，并视为成功
-            print("\n" + "="*50)
-            print(final_report)
-            print("="*50 + "\n")
-            logger.info("✅ 分析流水线执行成功，报告已输出到控制台（通知功能已禁用）。")
+            # 临时返回 True 以保持流程结束
+            logger.info("✅ 分析流水线执行完成（通知功能已禁用）。")
             return True
 
         except Exception as e:
-            logger.exception(f"💥 流水线执行出错: {e}")
+            logger.exception(f"💥 流水线执行出错：{e}")
             return False
