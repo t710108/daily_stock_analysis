@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 新增：将超时时间延长至 60 分钟，防止因测试耗时过长而被取消
+    timeout-minutes: 60
     
     # 保持你原有的分片策略，并行运行测试
     strategy:
@@ -20,26 +22,23 @@ jobs:
       # 👇 新增步骤：在 Checkout 之前/之后立即检查文件
       # 注意：这里使用 actions/checkout@v3 确保代码已拉取
       # ---------------------------------------------------------
-      
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Verify macOS Signature Audit Script
         run: |
           echo "🔍 Checking for scripts/macos-signature-audit.sh..."
-          
           # 检查文件是否存在
           if [ ! -f "scripts/macos-signature-audit.sh" ]; then
             echo "::error::❌ Critical Error: scripts/macos-signature-audit.sh is missing!"
             echo "Please ensure the script exists in the repository."
             exit 1
           fi
-          
           echo "✅ Script found successfully."
           # 可选：检查是否有执行权限
           if [ ! -x "scripts/macos-signature-audit.sh" ]; then
-             echo "⚠️ Warning: Script is not executable. Attempting to fix..."
-             chmod +x scripts/macos-signature-audit.sh
+            echo "⚠️ Warning: Script is not executable. Attempting to fix..."
+            chmod +x scripts/macos-signature-audit.sh
           fi
 
       # ---------------------------------------------------------
@@ -54,8 +53,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # 1. 安装项目基础依赖
-          pip install -r requirements.txt 
-          
+          pip install -r requirements.txt
           # 2. 【关键修复】显式安装并行测试插件 xdist 和分片插件 split
           pip install pytest pytest-xdist pytest-split pytest-cov
 
@@ -70,10 +68,8 @@ jobs:
             cd daily_stock_analysis
             echo "Entered subdirectory: $(pwd)"
           fi
-
           # 确认当前目录结构（调试用）
           ls -l
-          
           # 运行测试
           # -n auto: 启用多进程 (需要 pytest-xdist)
           # --splits 3 --group ${{ matrix.shard }}: 将测试分为3组并行运行 (需要 pytest-split)
