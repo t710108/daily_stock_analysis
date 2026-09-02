@@ -1,3 +1,9 @@
+# 尝试从 config_manager 导入（如果那里有定义）
+try:
+    from src.core.config_manager import INDEX_SKIP_MODULES
+except ImportError:
+    # 如果 config_manager 也没有，就手动定义一个空的
+    INDEX_SKIP_MODULES = []
 import logging
 from datetime import date, datetime, timedelta
 from enum import Enum
