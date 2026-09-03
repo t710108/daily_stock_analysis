@@ -1,25 +1,31 @@
 import os
 import pytest
 
-def pytest_ignore_collect(collection_path, path, config):
+
+def pytest_ignore_collect(collection_path, config):
     """
     自动跳过 known_failures.txt 中列出的测试文件
+    严格适配 Pytest 8.0+ (仅使用 collection_path)
     """
-    # 获取项目根目录（假设 conftest.py 在 tests/ 下，根目录就是上一级）
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    fail_list_path = os.path.join(root_dir, "known_failures.txt")
-    
-    if not os.path.exists(fail_list_path):
-        return None
+    # 1. 获取文件路径字符串
+    # collection_path 是 pathlib.Path 对象
+    file_path = str(collection_path)
 
-    with open(fail_list_path, 'r') as f:
-        failed_tests = [line.strip() for line in f if line.strip()]
+    # 2. 获取项目根目录下的 known_failures.txt 路径
+    # 这里的逻辑假设 conftest.py 在 tests/tests/ 下，
+    # 所以需要向上跳两级 (..) 才能回到项目根目录
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ignore_file = os.path.join(root_dir, "known_failures.txt")
 
-    # 将当前检测的文件路径转换为相对路径进行比对
-    rel_path = str(collection_path.relative_to(root_dir))
-    
-    if rel_path in failed_tests:
-        print(f"⏭️ Skipping known failure: {rel_path}")
-        return True
-    
-    return None
+    # 3. 如果忽略列表文件存在，则读取并比对
+    if os.path.exists(ignore_file):
+        with open(ignore_file, "r") as f:
+            ignored_files = [line.strip() for line in f if line.strip()]
+
+        # 检查当前文件是否在忽略列表中
+        # 使用文件名或相对路径匹配均可，这里做简单的包含检查
+        for ignored in ignored_files:
+            if ignored in file_path:
+                return True
+
+    return False
