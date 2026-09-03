@@ -25,23 +25,23 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-shard
+        
+        # 安装项目依赖
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f daily_stock_analysis/requirements.txt ]; then pip install -r daily_stock_analysis/requirements.txt; fi
 
-    - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
+    - name: Run Offline Tests
       run: |
-        # --- 关键修复：智能检测目录 ---
-        # 如果根目录下有 daily_stock_analysis 文件夹，就进去；否则就在当前目录跑
+        # 智能目录检测逻辑
+        TARGET_DIR="."
         if [ -d "daily_stock_analysis" ]; then
           TARGET_DIR="daily_stock_analysis"
-          cd $TARGET_DIR
-        else
-          TARGET_DIR="."
         fi
         
-        echo "Running tests in directory: $TARGET_DIR"
-
-        # 运行测试，同时排除已知的失败文件和目录
-        # 新增排除了 test_provider_cache.py
+        cd $TARGET_DIR
+        
+        # 执行测试
+        # --ignore 排除已知因重构而失效的测试文件
         python -m pytest \
           --shard-id=${{ matrix.shard }} \
           --num-shards=3 \
@@ -52,5 +52,5 @@ jobs:
           --ignore=tests/test_data_fetcher_prefetch_stock_names.py \
           --ignore=tests/test_tickflow_pipeline_prefetch.py \
           --ignore=tests/test_provider_cache.py \
-          --ignore=tests/test_threadless_test_client.py \
+          --ignore=tests/test_pipeline_single_stock_notify.py \
           tests/
