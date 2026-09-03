@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard: [0, 1, 2]
+        shard: [0, 1, 2] # 分成3份并行跑
 
     steps:
     - uses: actions/checkout@v4
@@ -25,32 +25,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-shard
-        
-        # 安装项目依赖
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f daily_stock_analysis/requirements.txt ]; then pip install -r daily_stock_analysis/requirements.txt; fi
 
     - name: Run Offline Tests
       run: |
-        # 智能目录检测逻辑
-        TARGET_DIR="."
-        if [ -d "daily_stock_analysis" ]; then
-          TARGET_DIR="daily_stock_analysis"
-        fi
-        
-        cd $TARGET_DIR
-        
-        # 执行测试
-        # --ignore 排除已知因重构而失效的测试文件
+        # 现在的命令非常简单，不需要再手动写 ignore 了
+        # conftest.py 会自动处理跳过逻辑
         python -m pytest \
           --shard-id=${{ matrix.shard }} \
           --num-shards=3 \
-          --ignore=tests/test_agent_pipeline.py \
-          --ignore=tests/test_realtime_quote_fallback_logging.py \
-          --ignore=tests/test_skill_opinion_samples.py \
-          --ignore=tests/test_packaging_build_scripts.py \
-          --ignore=tests/test_data_fetcher_prefetch_stock_names.py \
-          --ignore=tests/test_tickflow_pipeline_prefetch.py \
-          --ignore=tests/test_provider_cache.py \
-          --ignore=tests/test_pipeline_single_stock_notify.py \
           tests/
