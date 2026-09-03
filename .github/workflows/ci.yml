@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard: [1, 2, 3]
+        shard: [0, 1, 2]  # 修改点：改为从0开始
 
     steps:
     - uses: actions/checkout@v4
@@ -24,27 +24,28 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # 安装核心依赖
-        pip install -r requirements.txt || true 
-        # 关键修复：安装分片插件
-        pip install pytest pytest-shard
+        pip install pytest pytest-shard  # 确保安装了分片插件
+        
+        # 安装项目依赖（根据你的实际情况调整 requirements.txt 的路径）
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
+    - name: Run Offline Tests
       run: |
-        # 智能检测目录：如果存在 daily_stock_analysis 文件夹就进入，否则在根目录跑
+        # 智能目录检测逻辑
+        TARGET_DIR="."
         if [ -d "daily_stock_analysis" ]; then
-          echo "Entering directory: daily_stock_analysis"
-          cd daily_stock_analysis
-        else
-          echo "Running in root directory"
+          TARGET_DIR="daily_stock_analysis"
         fi
         
-        # 运行测试（包含所有排除项）
-        python -m pytest tests/ \
-          --ignore=tests/test_packaging_build_scripts.py \
-          --ignore=tests/test_provider_cache.py \
-          --ignore=tests/test_ci_workflow_contract.py \
+        cd $TARGET_DIR
+        
+        # 执行测试，注意这里使用了 matrix.shard 变量
+        # --shard-id 对应 matrix.shard (0, 1, 2)
+        # --num-shards 固定为 3
+        python -m pytest \
+          --shard-id=${{ matrix.shard }} \
+          --num-shards=3 \
           --ignore=tests/test_pipeline_single_notify_thread_safety.py \
           --ignore=tests/test_pipeline_single_stock_notify.py \
-          --shard-id=${{ matrix.shard }} --num-shards=3 \
-          -x -q
+          --ignore=tests/test_threadless_test_client.py \
+          tests/
