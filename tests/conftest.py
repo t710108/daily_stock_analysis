@@ -23,14 +23,15 @@ def pytest_ignore_collect(collection_path, config):
     # 4. 读取忽略列表
     try:
         with open(ignore_file, "r", encoding="utf-8") as f:
-            ignored_files = [line.strip() for line in f if line.strip()]
+            ignore_list = [line.strip() for line in f if line.strip() and not line.startswith("#")]
     except Exception:
         return False
 
     # 5. 检查当前文件是否在忽略列表中
-    # 我们检查文件名是否包含在忽略列表中（支持相对路径或文件名）
-    for ignored in ignored_files:
-        if ignored in file_path:
+    # 我们检查文件名是否包含在忽略列表的某一行中
+    for ignore_item in ignore_list:
+        if ignore_item in file_path:
+            print(f"🔇 Ignoring test file due to known failure: {file_path}")
             return True
 
     return False
