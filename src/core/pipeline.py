@@ -51,7 +51,7 @@ class StockAnalysisPipeline:
         """发送通知逻辑 (已禁用)"""
         pass
 
-    def process_single_stock(self, code: str, single_stock_notify=None) -> dict:
+    def process_single_stock(self, code: str, single_stock_notify=None, analysis_query_id=None) -> dict:
         """
         处理单只股票的分析逻辑（占位符实现）。
         参数名必须为 code 以通过 CI 测试。
