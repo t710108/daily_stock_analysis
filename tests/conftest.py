@@ -5,33 +5,35 @@ import pytest
 def pytest_ignore_collect(collection_path, config):
     """
     自动跳过 known_failures.txt 中列出的测试文件
-    适配 Pytest 8.0+ (仅使用 collection_path)
+    严格适配 Pytest 8.0+ (仅接受 collection_path)
     """
-    # 1. 获取文件路径字符串
-    # collection_path 是 pathlib.Path 对象
+    # 1. 将 pathlib.Path 对象转换为字符串
     file_path = str(collection_path)
 
-    # 2. 获取项目根目录 (假设 conftest.py 在 tests/ 目录下)
-    # os.path.dirname(__file__) 获取当前文件目录，再上一层即为根目录
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    ignore_file = os.path.join(root_dir, "known_failures.txt")
+    # 2. 获取项目根目录 (假设 conftest 在 tests 目录下，根目录在其上一级)
+    # 如果你的目录结构不同，请调整这里的 os.path.dirname 层级
+    root_dir = os.path.dirname(os.path.dirname(file_path))
 
-    # 3. 如果忽略列表文件不存在，则不跳过任何文件
-    if not os.path.exists(ignore_file):
-        return False
+    # 3. 构建失败列表文件的绝对路径
+    fail_list_path = os.path.join(root_dir, "known_failures.txt")
 
-    # 4. 读取忽略列表
-    try:
-        with open(ignore_file, "r", encoding="utf-8") as f:
-            ignore_list = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-    except Exception:
-        return False
+    # 4. 如果列表文件存在，执行跳过逻辑
+    if os.path.exists(fail_list_path):
+        with open(fail_list_path, "r", encoding="utf-8") as f:
+            # 读取每一行，去除空白，忽略空行和注释
+            ignore_files = [
+                line.strip()
+                for line in f.readlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
 
-    # 5. 检查当前文件是否在忽略列表中
-    # 我们检查文件名是否包含在忽略列表的某一行中
-    for ignore_item in ignore_list:
-        if ignore_item in file_path:
-            print(f"🔇 Ignoring test file due to known failure: {file_path}")
-            return True
+        # 检查当前文件是否在忽略列表中
+        # 使用文件名匹配（更稳健）或全路径匹配
+        current_file_name = os.path.basename(file_path)
 
-    return False
+        for ignore_item in ignore_files:
+            # 如果列表里写的是文件名（如 test_xxx.py）或者包含在路径中
+            if ignore_item in file_path or ignore_item == current_file_name:
+                return True  # 返回 True 表示忽略（跳过）该文件
+
+    return False  # 默认不跳过
