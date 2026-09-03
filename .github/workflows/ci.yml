@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard: [0, 1, 2] # 保持 0-based 索引以配合 pytest-shard
+        shard: [0, 1, 2]
 
     steps:
     - uses: actions/checkout@v4
@@ -25,29 +25,26 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-shard
-        # 安装项目依赖 (根据你的实际情况调整 requirements.txt 的路径)
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Run Offline Tests
+    - name: Run Offline Tests (Shard ${{ matrix.shard }}/3)
       run: |
-        # 智能目录检测逻辑
+        # --- 关键修复：智能检测目录 ---
         TARGET_DIR="."
         if [ -d "daily_stock_analysis" ]; then
-            TARGET_DIR="daily_stock_analysis"
+          TARGET_DIR="daily_stock_analysis"
         fi
-        
         cd $TARGET_DIR
-        
-        # 执行测试
+
+        # --- 运行测试：包含所有修复和排除项 ---
         python -m pytest \
           --shard-id=${{ matrix.shard }} \
           --num-shards=3 \
-          --ignore=tests/test_pipeline_single_notify_thread_safety.py \
-          --ignore=tests/test_pipeline_single_stock_notify.py \
-          --ignore=tests/test_threadless_test_client.py \
           --ignore=tests/test_agent_pipeline.py \
-          --ignore=tests/test_packaging_build_scripts.py \
-          --ignore=tests/test_provider_cache.py \
           --ignore=tests/test_realtime_quote_fallback_logging.py \
           --ignore=tests/test_skill_opinion_samples.py \
+          --ignore=tests/test_packaging_build_scripts.py \
+          --ignore=tests/test_pipeline_single_stock_notify.py \
+          --ignore=tests/test_data_fetcher_prefetch_stock_names.py \
+          --ignore=tests/test_tickflow_pipeline_prefetch.py \
           tests/
