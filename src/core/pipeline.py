@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class StockPipeline:
+class StockAnalysisPipeline:
     """
     股票分析流水线核心类
     """
