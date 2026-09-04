@@ -1,18 +1,51 @@
+import os
+import ast
 import unittest
 
-class TestCISanityCheck(unittest.TestCase):
+class TestStockAnalysisPipelineStaticContract(unittest.TestCase):
     """
-    CI 环境健康检查（空测试）。
-    目的：验证测试运行器（Test Runner）是否正常工作，不依赖任何业务代码。
+    静态契约测试（最终版）：
+    1. 不导入业务模块（避免缺配置报错）。
+    2. 不读取 requirements.txt（避免编码报错）。
+    3. 仅通过 AST 语法树分析验证核心类结构。
     """
-    
-    def test_environment_is_ready(self):
-        """这是一个永远会通过的测试"""
-        # 这里的逻辑非常简单：1 等于 1，所以它永远不会报错
-        self.assertEqual(1, 1, "CI 环境基础逻辑正常")
 
-    def test_python_version(self):
-        """打印当前 Python 版本，方便排查环境问题"""
-        import sys
-        print(f"当前运行环境的 Python 版本是: {sys.version}")
-        self.assertTrue(True)
+    def setUp(self):
+        # 动态获取项目根目录和 pipeline.py 的路径
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.pipeline_path = os.path.join(base_dir, 'src', 'pipeline.py')
+
+    def test_pipeline_file_exists(self):
+        """验证核心文件是否存在"""
+        self.assertTrue(
+            os.path.exists(self.pipeline_path),
+            f"核心文件未找到: {self.pipeline_path}"
+        )
+
+    def test_stock_analysis_pipeline_class_exists(self):
+        """验证 StockAnalysisPipeline 类是否定义"""
+        with open(self.pipeline_path, 'r', encoding='utf-8') as f:
+            tree = ast.parse(f.read(), filename=self.pipeline_path)
+
+        class_names = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+        self.assertIn(
+            'StockAnalysisPipeline', 
+            class_names, 
+            "未在 src/pipeline.py 中找到 StockAnalysisPipeline 类定义"
+        )
+
+    def test_run_method_exists(self):
+        """验证 run 方法是否存在于类中"""
+        with open(self.pipeline_path, 'r', encoding='utf-8') as f:
+            tree = ast.parse(f.read(), filename=self.pipeline_path)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == 'StockAnalysisPipeline':
+                method_names = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
+                self.assertIn('run', method_names, "StockAnalysisPipeline 类中缺少 run 方法")
+                return
+        
+        self.fail("StockAnalysisPipeline 类未找到，无法检查方法")
+
+if __name__ == '__main__':
+    unittest.main()
