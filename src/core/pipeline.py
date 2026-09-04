@@ -61,3 +61,4 @@ class StockAnalysisPipeline:
 if __name__ == "__main__":
     pipeline = StockPipeline()
     print(pipeline.process_single_stock("600519", single_stock_notify=True))
+
