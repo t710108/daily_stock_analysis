@@ -1,0 +1,39 @@
+name: Stock Analysis Email Notification
+
+# 触发条件：当代码推送到 main 分支时运行
+# 如果你的主分支叫 master，请把下面的 main 改成 master
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Email via 126
+        uses: dawidd6/action-send-mail@v3
+        with:
+          # 126邮箱 SMTP 服务器配置
+          server_address: smtp.126.com
+          server_port: 465
+          
+          # 你的账号信息 (已根据你的要求写死)
+          username: t710108@126.com
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          
+          # 收件人也是你自己
+          to: t710108@126.com
+          from: t710108@126.com
+          
+          # 邮件标题和内容
+          subject: "📈 股票分析系统更新通知"
+          body: |
+            你好！
+            
+            你的 daily_stock_analysis 项目刚刚有了新代码提交。
+            系统正在后台运行分析任务...
+            
+            提交信息：${{ github.event.head_commit.message }}
+            提交者：${{ github.actor }}
+            
+            祝投资顺利！
