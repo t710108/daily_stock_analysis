@@ -1,0 +1,48 @@
+name: 每日股票分析与邮件推送 (合并版)
+
+on:
+  schedule:
+    # 每天北京时间早上 9:00 运行 (UTC 1:00)
+    - cron: '0 1 * * 1-5' 
+  workflow_dispatch: # 允许手动点击运行
+
+jobs:
+  analyze-and-send:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. 设置 Python 环境
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # 如果没有 requirements.txt，可以直接在这里写库名，例如：
+          # pip install akshare pandas yagmail
+
+      # 4. 运行股票分析脚本 (生成报告)
+      - name: Run Stock Analysis
+        run: python main.py
+        env:
+          # 如果 main.py 需要环境变量，在这里配置
+          # MY_API_KEY: ${{ secrets.MY_API_KEY }}
+
+      # 5. 发送邮件 (紧接着分析完成后执行)
+      - name: Send Email Report
+        run: python send_email.py 
+        # 注意：这里假设你有一个单独的 send_email.py 
+        # 如果你的 main.py 已经包含了发送邮件的功能，
+        # 那么这一步可以删掉，或者把命令改成 python main.py --send
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          RECEIVER: ${{ secrets.RECEIVER }}
