@@ -1,39 +1,64 @@
-name: Stock Analysis Email Notification
+name: 每日股票分析与邮件推送
 
-# 触发条件：当代码推送到 main 分支时运行
-# 如果你的主分支叫 master，请把下面的 main 改成 master
 on:
-  push:
-    branches: [ "main" ]
+  # 1. 允许在网页上手动点击按钮运行
+  workflow_dispatch:
+  # 2. 每天北京时间早上 9:00 自动运行 (UTC 1:00)
+  schedule:
+    - cron: '0 1 * * 1-5' 
 
 jobs:
-  notify:
+  analyze-and-send:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Email via 126
+      # 下载代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 配置 Python 环境
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # 安装依赖包 (如果你的项目有 requirements.txt，会自动读取)
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || echo "未找到 requirements.txt，跳过安装"
+
+      # 运行你的股票分析主程序
+      - name: Run Stock Analysis
+        run: python main.py
+
+      # 读取生成的分析报告
+      - name: Read Report Content
+        id: read_report
+        run: |
+          if [ -f stock_report.txt ]; then
+            echo "REPORT_CONTENT<<EOF" >> $GITHUB_ENV
+            cat stock_report.txt >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "REPORT_CONTENT=⚠️ 未找到分析报告文件，请检查 Python 脚本是否正确生成了 stock_report.txt。" >> $GITHUB_ENV
+          fi
+
+      # 发送邮件到你的 Foxmail
+      - name: Send Email with Report
         uses: dawidd6/action-send-mail@v3
         with:
-          # 126邮箱 SMTP 服务器配置
           server_address: smtp.126.com
           server_port: 465
-          
-          # 你的账号信息 (已根据你的要求写死)
           username: t710108@126.com
           password: ${{ secrets.EMAIL_PASSWORD }}
-          
-          # 收件人也是你自己
           to: t710108@126.com
-          from: t710108@126.com
-          
-          # 邮件标题和内容
-          subject: "📈 股票分析系统更新通知"
+          from: "A股智能分析系统 <t710108@126.com>"
+          subject: "📈 [每日简报] 今日股票分析报告"
           body: |
             你好！
             
-            你的 daily_stock_analysis 项目刚刚有了新代码提交。
-            系统正在后台运行分析任务...
+            这是 GitHub Actions 自动为你生成的今日股票分析简报：
             
-            提交信息：${{ github.event.head_commit.message }}
-            提交者：${{ github.actor }}
+            ${{ env.REPORT_CONTENT }}
             
-            祝投资顺利！
+            ---
+            此邮件由 GitHub Actions 自动触发，祝你投资顺利！
