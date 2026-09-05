@@ -1,21 +1,18 @@
 name: Daily Stock Analysis & Report
 
 on:
-  # 定时触发：每天北京时间早上 8:30 运行 (UTC 00:30)
-  # 你可以根据需要修改 cron 表达式
   schedule:
-    - cron: '30 0 * * *'
-
-  # 允许手动触发（方便测试）
-  workflow_dispatch:
+    # 每天北京时间早上 9:00 运行 (UTC 1:00)
+    - cron: '0 1 * * 1-5'
+  workflow_dispatch: # 允许手动点击运行
 
 jobs:
-  analyze-and-report:
+  analyze-and-send:
     runs-on: ubuntu-latest
 
     steps:
       # 1. 检出代码
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
       # 2. 设置 Python 环境
@@ -25,28 +22,28 @@ jobs:
           python-version: '3.10' # 根据你的项目需求调整版本
 
       # 3. 安装依赖
-      # 假设你的项目根目录有 requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          # 如果发送邮件需要额外的库（如 yagmail, smtplib 等），确保在 requirements.txt 里或者在这里安装
-          pip install yagmail keyring # 示例：安装常用的邮件库
+          # 如果发送邮件需要额外的库，确保在这里安装
+          pip install yagmail keyring
 
-      # 4. 运行分析脚本
-      # 这里假设你的主程序入口是 main.py 或 analysis.py
-      # 请根据你的实际脚本名称修改
+      # 4. 运行股票分析脚本 (生成报告)
       - name: Run Stock Analysis
         run: python main.py
         env:
           # 将敏感信息通过环境变量传入，确保安全
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          API_KEY: ${{ secrets.API_KEY }} # 如果有其他 API Key
+          API_KEY: ${{ secrets.API_KEY }}
 
       # 5. (可选) 发送结果邮件
       # 如果你的 Python 脚本内部已经处理了发邮件，这一步可以省略。
-      # 如果脚本只是生成了文件（如 report.html），你可以用专门的 Action 来发。
-      # 这里假设 Python 脚本已经完成了所有工作（分析+生成报告+调用发邮件）。
-      - name: Check output
-        run: echo "Analysis finished. Check your email for the report."
+      # 如果脚本只是生成了文件，你可以用专门的 Action 来发邮件，或者在这里写脚本发。
+      - name: Send Email Report
+        run: python send_email.py
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          RECEIVER: ${{ secrets.RECEIVER }}
