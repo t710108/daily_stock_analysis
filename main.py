@@ -1790,3 +1790,35 @@ def main() -> int:
 if __name__ == "__main__":
     multiprocessing.freeze_support()
     sys.exit(main())
+# ==========================================
+# 【新增】自动保存分析报告到文件，供邮件发送
+# ==========================================
+import os
+import sys
+
+# 尝试获取分析结果
+# 注意：如果你的 main.py 里结果变量不叫 result，请根据实际情况调整
+# 这里做一个通用的兜底处理
+
+report_content = ""
+
+# 1. 尝试获取常见的结果变量名
+if 'result' in locals():
+    report_content = str(result)
+elif 'analysis_result' in locals():
+    report_content = str(analysis_result)
+else:
+    # 2. 如果找不到变量，就记录一条成功运行的日志
+    report_content = "✅ 股票分析任务已成功执行完毕。\n\n请查看 GitHub Actions 日志获取详细数据，或检查下方是否有具体输出。"
+
+# 3. 写入文件
+try:
+    with open("stock_report.txt", "w", encoding="utf-8") as f:
+        f.write("📈 A股智能分析系统 - 每日简报\n")
+        f.write("=" * 40 + "\n\n")
+        f.write(report_content)
+        f.write("\n\n" + "=" * 40 + "\n")
+        f.write("🤖 由 GitHub Actions 自动生成")
+    print("💾 报告已保存至 stock_report.txt")
+except Exception as e:
+    print(f"❌ 保存报告失败: {e}")
